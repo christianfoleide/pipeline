@@ -14,15 +14,17 @@ func TestMain(m *testing.M) {
 }
 
 func TestEmitNonConcurrent(t *testing.T) {
-	pipeline := New()
+	pipeline := New(WithDefault())
 	pipeline.Next("test", func(i interface{}) (interface{}, error) {
 		return i, nil
-	}, 1)
+	}, 1, 1024)
 
 	arr := []string{"test1", "test2", "test3", "test4"}
 
 	counter := 0
 
+	// a non-concurrent pipeline will output the values
+	// to the sink in the same order they were emitted on the source
 	sink := pipeline.Emit("test1", "test2", "test3", "test4")
 
 	for actual := range sink {
@@ -35,17 +37,17 @@ func TestEmitNonConcurrent(t *testing.T) {
 }
 
 func TestEmitManyStages(t *testing.T) {
-	pipeline := New()
+	pipeline := New(WithDefault())
 
 	pipeline.Next("stage1", func(i interface{}) (interface{}, error) {
 		return strings.ToUpper(i.(string)), nil
-	}, 2)
+	}, 2, 1024)
 	pipeline.Next("stage1", func(i interface{}) (interface{}, error) {
 		return fmt.Sprintf("--%s--", i.(string)), nil
-	}, 1)
+	}, 1, 1024)
 	pipeline.Next("stage1", func(i interface{}) (interface{}, error) {
 		return fmt.Sprintf("123%s456", i.(string)), nil
-	}, 3)
+	}, 3, 1024)
 
 	expect := "123--HELLO--456"
 
@@ -60,7 +62,7 @@ func TestEmitManyStages(t *testing.T) {
 
 func TestDumpsErrors(t *testing.T) {
 
-	pipeline := New()
+	pipeline := New(WithDefault())
 	pipeline.OnError(func(e error) {
 		// do nothing
 	})
@@ -70,7 +72,7 @@ func TestDumpsErrors(t *testing.T) {
 			return nil, errors.New("test")
 		}
 		return i, nil
-	}, 3)
+	}, 1, 1024)
 
 	emitted := 0
 	sink := pipeline.Emit("one", "two", nil)

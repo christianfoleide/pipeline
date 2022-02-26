@@ -14,6 +14,10 @@ type stageFunc func(interface{}) (interface{}, error)
 // that error is passed to this function.
 type errFunc func(error)
 
+func defaultErrFunc(err error) {
+	log.Printf("stageFunc returned a non-nil error: %+v", err)
+}
+
 // cancelFunc is the function returned by either Emit or
 // EmitWithDelay, making the client able to cancel
 // the pipeline.
@@ -21,12 +25,13 @@ type cancelFunc func()
 
 // Stage represents a single processing stage in the pipeline.
 type stage struct {
-	identifier  string
-	workerCount int
-	fn          stageFunc
-	errFn       errFunc
-	in          chan interface{}
-	out         chan interface{}
+	identifier    string
+	workerCount   int
+	cancelOnError bool
+	fn            stageFunc
+	errFn         errFunc
+	in            chan interface{}
+	out           chan interface{}
 }
 
 // Run starts the processing stage, creating workerCount goroutines.
@@ -58,19 +63,31 @@ func (s *stage) Run() {
 }
 
 type Pipeline struct {
-	source chan interface{}
-	sink   chan interface{}
+	source     chan interface{}
+	sink       chan interface{}
+	cancelChan chan struct{}
 
 	errFn  errFunc
 	stages []*stage
 }
 
+type PipelineOpts struct {
+	chanBufSize int
+}
+
+func WithDefault() *PipelineOpts {
+	return &PipelineOpts{
+		chanBufSize: 1024,
+	}
+}
+
 // New returns a new Pipeline.
-func New() *Pipeline {
+func New(opts *PipelineOpts) *Pipeline {
 	return &Pipeline{
-		source: make(chan interface{}, 0),
-		sink:   make(chan interface{}, 0),
+		source: make(chan interface{}, opts.chanBufSize),
+		sink:   make(chan interface{}, opts.chanBufSize),
 		stages: make([]*stage, 0),
+		errFn:  defaultErrFunc,
 	}
 }
 
@@ -87,7 +104,7 @@ func (p *Pipeline) OnError(fn errFunc) {
 // each piece of data it receives from the upstream stage, if any
 // such stage exists.
 // The data flows through the pipeline in the order Next is called.
-func (p *Pipeline) Next(identifier string, fn stageFunc, routineCount int) {
+func (p *Pipeline) Next(identifier string, fn stageFunc, routineCount, chanBufSize int) {
 	if len(p.stages) == 0 {
 		stage := &stage{
 			identifier:  identifier,
@@ -101,7 +118,7 @@ func (p *Pipeline) Next(identifier string, fn stageFunc, routineCount int) {
 		return
 
 	}
-	join := make(chan interface{})
+	join := make(chan interface{}, chanBufSize)
 	last := p.stages[len(p.stages)-1]
 	last.out = join // the last stage is no longer emitting to the pipeline sink.
 
