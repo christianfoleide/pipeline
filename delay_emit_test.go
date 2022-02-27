@@ -8,9 +8,9 @@ import (
 func TestDelayEmit(t *testing.T) {
 
 	pipeline := New(WithDefault())
-	pipeline.Next("test", func(i interface{}) (interface{}, error) {
+	pipeline.Next(func(i interface{}) (interface{}, error) {
 		return i, nil
-	}, 1, 1024)
+	}, 1)
 
 	start := time.Now()
 	sink := pipeline.EmitWithDelay(time.Millisecond*250, "", "", "", "")

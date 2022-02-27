@@ -25,7 +25,6 @@ type cancelFunc func()
 
 // Stage represents a single processing stage in the pipeline.
 type stage struct {
-	identifier    string
 	workerCount   int
 	cancelOnError bool
 	fn            stageFunc
@@ -67,27 +66,30 @@ type Pipeline struct {
 	sink       chan interface{}
 	cancelChan chan struct{}
 
-	errFn  errFunc
-	stages []*stage
+	errFn   errFunc
+	stages  []*stage
+	bufSize int
 }
 
 type PipelineOpts struct {
-	chanBufSize int
+	ChanBufSize int
 }
 
+// WithDefault sets the channel bufSize of the pipeline to 1024.
 func WithDefault() *PipelineOpts {
 	return &PipelineOpts{
-		chanBufSize: 1024,
+		ChanBufSize: 1024,
 	}
 }
 
 // New returns a new Pipeline.
 func New(opts *PipelineOpts) *Pipeline {
 	return &Pipeline{
-		source: make(chan interface{}, opts.chanBufSize),
-		sink:   make(chan interface{}, opts.chanBufSize),
-		stages: make([]*stage, 0),
-		errFn:  defaultErrFunc,
+		source:  make(chan interface{}, opts.ChanBufSize),
+		sink:    make(chan interface{}, opts.ChanBufSize),
+		stages:  make([]*stage, 0),
+		errFn:   defaultErrFunc,
+		bufSize: opts.ChanBufSize,
 	}
 }
 
@@ -104,10 +106,9 @@ func (p *Pipeline) OnError(fn errFunc) {
 // each piece of data it receives from the upstream stage, if any
 // such stage exists.
 // The data flows through the pipeline in the order Next is called.
-func (p *Pipeline) Next(identifier string, fn stageFunc, routineCount, chanBufSize int) {
+func (p *Pipeline) Next(fn stageFunc, routineCount int) {
 	if len(p.stages) == 0 {
 		stage := &stage{
-			identifier:  identifier,
 			workerCount: routineCount,
 			fn:          fn,
 			in:          p.source,
@@ -118,12 +119,11 @@ func (p *Pipeline) Next(identifier string, fn stageFunc, routineCount, chanBufSi
 		return
 
 	}
-	join := make(chan interface{}, chanBufSize)
+	join := make(chan interface{}, p.bufSize)
 	last := p.stages[len(p.stages)-1]
 	last.out = join // the last stage is no longer emitting to the pipeline sink.
 
 	stage := &stage{
-		identifier:  identifier,
 		workerCount: routineCount,
 		fn:          fn,
 		in:          join,   // this new stage will receive from the upstream stage.

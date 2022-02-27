@@ -15,9 +15,9 @@ func TestMain(m *testing.M) {
 
 func TestEmitNonConcurrent(t *testing.T) {
 	pipeline := New(WithDefault())
-	pipeline.Next("test", func(i interface{}) (interface{}, error) {
+	pipeline.Next(func(i interface{}) (interface{}, error) {
 		return i, nil
-	}, 1, 1024)
+	}, 1)
 
 	arr := []string{"test1", "test2", "test3", "test4"}
 
@@ -39,15 +39,15 @@ func TestEmitNonConcurrent(t *testing.T) {
 func TestEmitManyStages(t *testing.T) {
 	pipeline := New(WithDefault())
 
-	pipeline.Next("stage1", func(i interface{}) (interface{}, error) {
+	pipeline.Next(func(i interface{}) (interface{}, error) {
 		return strings.ToUpper(i.(string)), nil
-	}, 2, 1024)
-	pipeline.Next("stage1", func(i interface{}) (interface{}, error) {
+	}, 2)
+	pipeline.Next(func(i interface{}) (interface{}, error) {
 		return fmt.Sprintf("--%s--", i.(string)), nil
-	}, 1, 1024)
-	pipeline.Next("stage1", func(i interface{}) (interface{}, error) {
+	}, 1)
+	pipeline.Next(func(i interface{}) (interface{}, error) {
 		return fmt.Sprintf("123%s456", i.(string)), nil
-	}, 3, 1024)
+	}, 3)
 
 	expect := "123--HELLO--456"
 
@@ -67,12 +67,12 @@ func TestDumpsErrors(t *testing.T) {
 		// do nothing
 	})
 
-	pipeline.Next("test", func(i interface{}) (interface{}, error) {
+	pipeline.Next(func(i interface{}) (interface{}, error) {
 		if i == nil {
 			return nil, errors.New("test")
 		}
 		return i, nil
-	}, 1, 1024)
+	}, 1)
 
 	emitted := 0
 	sink := pipeline.Emit("one", "two", nil)
