@@ -18,11 +18,6 @@ func defaultErrFunc(err error) {
 	log.Printf("stageFunc returned a non-nil error: %+v", err)
 }
 
-// cancelFunc is the function returned by either Emit or
-// EmitWithDelay, making the client able to cancel
-// the pipeline.
-type cancelFunc func()
-
 // Stage represents a single processing stage in the pipeline.
 type stage struct {
 	workerCount   int
@@ -162,6 +157,22 @@ func (p *Pipeline) EmitWithDelay(dur time.Duration, values ...interface{}) <-cha
 			case <-time.After(dur):
 				p.source <- v
 			}
+		}
+	}()
+	return p.sink
+}
+
+// EmitFromChannel emits the incoming values on 'in' to the pipeline's
+// source channel.
+// Caller is responsible for closing 'in', so that the pipeline can terminate.
+func (p *Pipeline) EmitFromChannel(in <-chan interface{}) <-chan interface{} {
+
+	p.mustHaveStages()
+
+	go func() {
+		defer close(p.source)
+		for v := range in {
+			p.source <- v
 		}
 	}()
 	return p.sink

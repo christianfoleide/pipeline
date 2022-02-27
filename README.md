@@ -4,6 +4,9 @@
 $ go get -u github.com/christianfoleide/pipeline
 ```
 
+Basically a glorified linked-list of channels
+
+
 ### Example
 
 ```go
@@ -11,16 +14,18 @@ func main() {
 
    p := pipeline.New()
 
-   p.Next("stage1", func(data interface{}) (interface{}, error) {
+   // adding a stage
+
+   p.Next(func(data interface{}) (interface{}, error) {
 
       // data is from upstream stage
       // returned data is sent to a downstream stage
 
    }, 3) // 3 goroutines
 
-   p.Next("stage2", func(data interface{}) (interface{}, error) {
+   p.Next(func(data interface{}) (interface{}, error) {
 
-      // ----..----
+      // do something with data
 
    }, 2) // 2 goroutines
 
@@ -28,10 +33,12 @@ func main() {
       // handle errors on any stage
    })
 
+   // emit data
+
    for v := range p.Emit(/* source data */) {
 
-      // v is the resulting values
-      // altered by the entire pipeline chain
+      // v is a single value modified by the entire
+      // pipeline chain
 
    }
 }
@@ -39,7 +46,5 @@ func main() {
 ```
 
 ### Limitations
-
-- No cancellation
-   - And hence no draining of remaining data
-- Errors are handled one way
+- No options to stop on errors:
+   - The error is passed to the OnError handler, and will not go past the stage it was produced.
