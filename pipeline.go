@@ -20,12 +20,11 @@ func defaultErrFunc(err error) {
 
 // Stage represents a single processing stage in the pipeline.
 type stage struct {
-	workerCount   int
-	cancelOnError bool
-	fn            stageFunc
-	errFn         errFunc
-	in            chan interface{}
-	out           chan interface{}
+	workerCount int
+	fn          stageFunc
+	errFn       errFunc
+	in          chan interface{}
+	out         chan interface{}
 }
 
 // Run starts the processing stage, creating workerCount goroutines.
@@ -57,9 +56,8 @@ func (s *stage) Run() {
 }
 
 type Pipeline struct {
-	source     chan interface{}
-	sink       chan interface{}
-	cancelChan chan struct{}
+	source chan interface{}
+	sink   chan interface{}
 
 	errFn   errFunc
 	stages  []*stage

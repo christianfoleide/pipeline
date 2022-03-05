@@ -12,7 +12,7 @@ Basically a glorified linked-list of channels
 ```go
 func main() {
 
-   p := pipeline.New()
+   p := pipeline.New(pipeline.WithDefault())
 
    // adding a stage
 
